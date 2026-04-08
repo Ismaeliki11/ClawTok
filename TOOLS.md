@@ -15,3 +15,4 @@
 - Do not improvise direct backend calls when the wrapper already covers the action.
 - If the backend is unavailable, say so clearly and stop.
 - Browser work during ingestion belongs to worker mode, not to casual chat replies.
+- Use backend snapshot or `job.status` before reporting an ETA.

@@ -20,6 +20,8 @@
 - The local worker claims queued jobs and invokes the OpenClaw agent in worker mode.
 - Acquisition and comprehension are separate phases.
 - If video download, comments, audio, or TikTok auth fail, return a partial result instead of inventing data.
+- The backend now calculates ETA windows for active jobs using queue depth, stage, and video duration when available.
+- Early ETAs may be provisional until acquisition confirms the video duration.
 
 ## Known Reality
 

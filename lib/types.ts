@@ -76,7 +76,31 @@ export interface Nota {
   fuente?: TikTokFuente
 }
 
+export interface ImportEstimate {
+  atascada: boolean
+  calculadoEn: string
+  colaDelante: number
+  duracionVideoSegundos?: number | null
+  duracionVideoVisible?: string | null
+  etapa: string
+  etapaLabel: string
+  listoEntre: {
+    desde: string
+    hasta: string
+    desdeLocal: string
+    hastaLocal: string
+  }
+  mensaje: string
+  minutosRestantes: {
+    maximo: number
+    minimo: number
+  }
+  provisional: boolean
+  sinActividadMinutos?: number | null
+}
+
 export interface ImportacionReciente {
+  estimacion?: ImportEstimate
   id: string
   notaId?: string
   actualizadoEn?: string
@@ -84,6 +108,7 @@ export interface ImportacionReciente {
   error?: string | null
   estado: ProcessingStatus
   parcial?: boolean
+  stage?: string | null
   url: string
 }
 

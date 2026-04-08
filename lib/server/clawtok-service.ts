@@ -6,6 +6,7 @@ import type {
   Carpeta,
   ClawtokAnalysis,
   GlosarioItem,
+  ImportEstimate,
   ImportacionReciente,
   Nota,
   ProcessingStatus,
@@ -16,6 +17,23 @@ import { badRequest, notFound } from '@/lib/server/errors'
 type DbTransaction = Awaited<ReturnType<Client['transaction']>>
 type Executor = Pick<Client, 'execute'> | Pick<DbTransaction, 'execute'>
 type DbRow = Record<string, unknown>
+
+const ACTIVE_IMPORT_STATUSES = new Set<ProcessingStatus>([
+  'pendiente',
+  'procesando',
+  'analizando',
+  'organizando',
+])
+
+const MADRID_TIME_ZONE = 'Europe/Madrid'
+const JOB_STAGE_LABELS: Record<string, string> = {
+  acquisition: 'Revisando el TikTok',
+  analysis: 'Analizando audio, visuales y comentarios',
+  complete: 'Completado',
+  failed: 'Bloqueado',
+  organizing: 'Guardando la nota',
+  queued: 'En cola',
+}
 
 export interface CreateImportInput {
   requestedBy?: string
@@ -165,6 +183,198 @@ function normalizeStringArray(value: unknown) {
   return Array.isArray(list) ? list.filter((item) => typeof item === 'string') : []
 }
 
+function isActiveImportStatus(status: string): status is ProcessingStatus {
+  return ACTIVE_IMPORT_STATUSES.has(status as ProcessingStatus)
+}
+
+function formatClock(date: Date) {
+  return new Intl.DateTimeFormat('es-ES', {
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    timeZone: MADRID_TIME_ZONE,
+  }).format(date)
+}
+
+function formatMinutesWindow(minimo: number, maximo: number) {
+  if (minimo === maximo) {
+    return `${minimo} min`
+  }
+
+  return `${minimo}-${maximo} min`
+}
+
+function formatDuration(seconds: number) {
+  if (seconds < 60) {
+    return `${Math.max(1, Math.round(seconds))} s`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  const remainder = Math.round(seconds % 60)
+
+  if (remainder === 0) {
+    return `${minutes} min`
+  }
+
+  return `${minutes} min ${remainder} s`
+}
+
+function deriveStage(status: ProcessingStatus, rawStage?: string | null) {
+  if (rawStage) {
+    return rawStage
+  }
+
+  switch (status) {
+    case 'pendiente':
+      return 'queued'
+    case 'procesando':
+      return 'acquisition'
+    case 'analizando':
+      return 'analysis'
+    case 'organizando':
+      return 'organizing'
+    case 'completado':
+      return 'complete'
+    case 'error':
+      return 'failed'
+    default:
+      return 'queued'
+  }
+}
+
+function readDurationDetails(row: DbRow) {
+  const acquisition = safeJsonParse<Record<string, unknown>>(row.acquisition_json, {})
+  const rawSeconds = acquisition.durationSeconds
+  const durationSeconds =
+    typeof rawSeconds === 'number' && Number.isFinite(rawSeconds) && rawSeconds > 0
+      ? rawSeconds
+      : typeof rawSeconds === 'string' && rawSeconds.trim()
+        ? Number(rawSeconds)
+        : null
+
+  const durationLabel =
+    typeof acquisition.durationLabel === 'string' && acquisition.durationLabel.trim().length > 0
+      ? acquisition.durationLabel.trim()
+      : durationSeconds && Number.isFinite(durationSeconds)
+        ? formatDuration(durationSeconds)
+        : null
+
+  return {
+    durationLabel,
+    durationSeconds:
+      durationSeconds && Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? durationSeconds
+        : null,
+  }
+}
+
+function estimateImport(row: DbRow, activeRows: DbRow[]): ImportEstimate | undefined {
+  const status = readString(row, 'status') as ProcessingStatus
+  const stage = deriveStage(status, readNullableString(row, 'stage'))
+  const stageLabel = JOB_STAGE_LABELS[stage] ?? 'Procesando'
+
+  if (!isActiveImportStatus(status)) {
+    return undefined
+  }
+
+  const activeIds = activeRows.map((item) => readString(item, 'id'))
+  const activeIndex = activeIds.indexOf(readString(row, 'id'))
+  const colaDelante = activeIndex > 0 ? activeIndex : 0
+  const { durationLabel, durationSeconds } = readDurationDetails(row)
+  const videoMinutes = durationSeconds ? Math.min(Math.max(durationSeconds / 60, 0.25), 5) : 0.75
+
+  let baseMin = 2
+  let baseMax = 5
+
+  switch (stage) {
+    case 'queued':
+      baseMin = 2.5 + videoMinutes * 0.4
+      baseMax = 6 + videoMinutes * 0.8
+      break
+    case 'acquisition':
+      baseMin = 1.5 + videoMinutes * 0.35
+      baseMax = 4 + videoMinutes * 0.75
+      break
+    case 'analysis':
+      baseMin = 1 + videoMinutes * 0.3
+      baseMax = 3 + videoMinutes * 0.5
+      break
+    case 'organizing':
+      baseMin = 1
+      baseMax = 2
+      break
+    default:
+      break
+  }
+
+  const minimo = Math.max(1, Math.ceil(baseMin + colaDelante * 3.5))
+  const maximo = Math.max(minimo, Math.ceil(baseMax + colaDelante * 6))
+  const provisional = durationSeconds == null
+  const nowDate = new Date()
+  const updatedAtText = readString(row, 'updated_at')
+  const updatedAtDate = updatedAtText ? new Date(updatedAtText) : nowDate
+  const sinActividadMinutos = Math.max(
+    0,
+    Math.floor((nowDate.getTime() - updatedAtDate.getTime()) / 60_000)
+  )
+  const thresholdMinutes =
+    stage === 'queued' ? 10 : stage === 'organizing' ? 8 : 12
+  const atascada = sinActividadMinutos >= thresholdMinutes
+  const desdeDate = new Date(nowDate.getTime() + minimo * 60_000)
+  const hastaDate = new Date(nowDate.getTime() + maximo * 60_000)
+  const desdeLocal = formatClock(desdeDate)
+  const hastaLocal = formatClock(hastaDate)
+
+  const fragments = [`${stageLabel}.`]
+  if (atascada) {
+    if (stage === 'queued') {
+      fragments.push(
+        `Lleva ${sinActividadMinutos} min sin avanzar en cola; es probable que el worker no este corriendo.`
+      )
+    } else {
+      fragments.push(
+        `Lleva ${sinActividadMinutos} min sin actividad visible; puede haberse quedado atascada.`
+      )
+    }
+  }
+  if (colaDelante > 0) {
+    fragments.push(
+      `Hay ${colaDelante} importacion${colaDelante === 1 ? '' : 'es'} por delante.`
+    )
+  }
+  if (durationLabel) {
+    fragments.push(`Duracion detectada: ${durationLabel}.`)
+  }
+  fragments.push(`Calculo ${formatMinutesWindow(minimo, maximo)} restantes.`)
+  fragments.push(`Aprox listo entre las ${desdeLocal} y las ${hastaLocal}.`)
+  if (provisional) {
+    fragments.push('La ETA se afinara cuando vea mejor el video.')
+  }
+
+  return {
+    atascada,
+    calculadoEn: nowDate.toISOString(),
+    colaDelante,
+    duracionVideoSegundos: durationSeconds,
+    duracionVideoVisible: durationLabel,
+    etapa: stage,
+    etapaLabel: stageLabel,
+    listoEntre: {
+      desde: desdeDate.toISOString(),
+      hasta: hastaDate.toISOString(),
+      desdeLocal,
+      hastaLocal,
+    },
+    mensaje: fragments.join(' '),
+    minutosRestantes: {
+      maximo,
+      minimo,
+    },
+    provisional,
+    sinActividadMinutos,
+  }
+}
+
 function serializeNote(row: DbRow): Nota {
   const source = safeJsonParse<TikTokFuente | undefined>(row.source_json, undefined)
   const analysis = safeJsonParse<ClawtokAnalysis | undefined>(
@@ -196,15 +406,19 @@ function serializeNote(row: DbRow): Nota {
   }
 }
 
-function serializeImport(row: DbRow): ImportacionReciente {
+function serializeImport(row: DbRow, activeRows: DbRow[]): ImportacionReciente {
+  const status = readString(row, 'status') as ProcessingStatus
+
   return {
+    estimacion: estimateImport(row, activeRows),
     id: readString(row, 'id'),
     notaId: readString(row, 'note_id'),
     actualizadoEn: readString(row, 'updated_at'),
     creadoEn: readString(row, 'created_at'),
     error: readNullableString(row, 'error_message'),
-    estado: readString(row, 'status') as ProcessingStatus,
+    estado: status,
     parcial: readNumber(row, 'partial') === 1,
+    stage: deriveStage(status, readNullableString(row, 'stage')),
     url: readString(row, 'source_url'),
   }
 }
@@ -257,12 +471,42 @@ async function readSnapshotFromExecutor(executor: Executor): Promise<AppSnapshot
   const importsResult = await executor.execute({
     sql: 'SELECT * FROM import_jobs ORDER BY created_at DESC LIMIT 25',
   })
+  const activeImportsResult = await executor.execute({
+    sql: `
+      SELECT *
+      FROM import_jobs
+      WHERE status IN ('pendiente', 'procesando', 'analizando', 'organizando')
+      ORDER BY created_at ASC
+    `,
+  })
+
+  const activeRows = activeImportsResult.rows.map((row) => asRow(row))
 
   return {
     carpetas: foldersResult.rows.map((row) => serializeFolder(asRow(row))),
     notas: notesResult.rows.map((row) => serializeNote(asRow(row))),
-    importaciones: importsResult.rows.map((row) => serializeImport(asRow(row))),
+    importaciones: importsResult.rows.map((row) => serializeImport(asRow(row), activeRows)),
   }
+}
+
+export async function getAllFolders(): Promise<Carpeta[]> {
+  const db = await getDb()
+  const result = await db.execute('SELECT * FROM folders ORDER BY created_at ASC')
+  return result.rows.map((row) => serializeFolder(asRow(row)))
+}
+
+export async function createFolder(data: {
+  id: string
+  nombre: string
+  icono: string
+  color: string
+}): Promise<void> {
+  const db = await getDb()
+  const timestamp = now()
+  await db.execute({
+    sql: 'INSERT OR IGNORE INTO folders (id, name, icon, color, created_at) VALUES (?, ?, ?, ?, ?)',
+    args: [data.id, data.nombre, data.icono, data.color, timestamp],
+  })
 }
 
 export async function getAppSnapshot(): Promise<AppSnapshot> {
@@ -372,7 +616,9 @@ export async function createImportJob(input: CreateImportInput) {
     })
   })
 
-  return { jobId, noteId }
+  const job = await getImportJobSummary(jobId)
+
+  return { job, jobId, noteId }
 }
 
 export async function updateNoteFields(
@@ -554,6 +800,31 @@ export async function getImportJob(jobId: string) {
   const db = await getDb()
   const row = await getJobRow(db, jobId)
   return row ? serializeJobRecord(row) : null
+}
+
+async function getActiveImportRows(executor: Executor) {
+  const result = await executor.execute({
+    sql: `
+      SELECT *
+      FROM import_jobs
+      WHERE status IN ('pendiente', 'procesando', 'analizando', 'organizando')
+      ORDER BY created_at ASC
+    `,
+  })
+
+  return result.rows.map((row) => asRow(row))
+}
+
+export async function getImportJobSummary(jobId: string) {
+  const db = await getDb()
+  const row = await getJobRow(db, jobId)
+
+  if (!row) {
+    return null
+  }
+
+  const activeRows = await getActiveImportRows(db)
+  return serializeImport(row, activeRows)
 }
 
 export async function setImportJobStage(
@@ -780,46 +1051,6 @@ export async function failImportJob(
   })
 }
 
-function scoreFolder(folderId: string, haystack: string) {
-  const rules: Record<string, string[]> = {
-    herramientas: ['tool', 'herramienta', 'app', 'software', 'plugin'],
-    ia: ['ia', 'ai', 'gpt', 'claude', 'llm', 'openai', 'cursor', 'copilot'],
-    ideas: ['idea', 'startup', 'brainstorm', 'concepto'],
-    productividad: ['notion', 'obsidian', 'gtd', 'productividad', 'workflow'],
-    programacion: ['codigo', 'code', 'developer', 'programacion', 'python', 'api'],
-    recetas: ['receta', 'cocina', 'ingrediente'],
-    web: ['css', 'html', 'react', 'tailwind', 'frontend', 'web', 'next.js'],
-  }
-
-  return (rules[folderId] ?? []).reduce((score, token) => {
-    return haystack.includes(token) ? score + 1 : score
-  }, 0)
-}
-
-export function inferFolderId(input: {
-  analysis: ClawtokAnalysis
-  source: TikTokFuente
-  summary: string
-  title: string
-}) {
-  const haystack = [
-    input.title,
-    input.summary,
-    input.source.caption ?? '',
-    ...input.analysis.herramientasMencionadas,
-    ...input.source.hashtags,
-  ]
-    .join(' ')
-    .toLowerCase()
-
-  const ranked = (
-    ['ia', 'web', 'programacion', 'herramientas', 'productividad', 'recetas', 'ideas'] as const
-  )
-    .map((folderId) => ({ folderId, score: scoreFolder(folderId, haystack) }))
-    .sort((left, right) => right.score - left.score)
-
-  return ranked[0]?.score ? ranked[0].folderId : 'otros'
-}
 
 export function computeConfidenceScore(level: 'alto' | 'medio' | 'bajo' | null | undefined) {
   switch (level) {

@@ -11,7 +11,6 @@ import {
 } from 'react'
 import type { AppSnapshot, Carpeta, ImportacionReciente, Nota } from '@/lib/types'
 import {
-  createImport,
   deleteNote,
   fetchAppState,
   updateNote,
@@ -21,10 +20,10 @@ interface StoreValue {
   carpetas: Carpeta[]
   notas: Nota[]
   importaciones: ImportacionReciente[]
+  importacionesEnProceso: ImportacionReciente[]
   notasRecientes: Nota[]
   notasEnProceso: Nota[]
   inicializado: boolean
-  importarTikTok: (url: string) => Promise<string>
   eliminarNota: (id: string) => Promise<void>
   editarNota: (id: string, updates: Partial<Nota>) => Promise<void>
   notasPorCarpeta: (carpetaId: string) => Nota[]
@@ -109,9 +108,12 @@ function useProvideStore(): StoreValue {
   const notasEnProceso = notas.filter((note) => {
     return note.estadoProcesado !== 'completado' && note.estadoProcesado !== 'error'
   })
+  const importacionesEnProceso = importaciones.filter((item) => {
+    return item.estado !== 'completado' && item.estado !== 'error'
+  })
 
   useEffect(() => {
-    if (!inicializado || notasEnProceso.length === 0) {
+    if (!inicializado || importacionesEnProceso.length === 0) {
       return
     }
 
@@ -122,20 +124,16 @@ function useProvideStore(): StoreValue {
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [inicializado, notasEnProceso.length])
+  }, [inicializado, importacionesEnProceso.length])
 
   return {
     carpetas,
     notas,
     importaciones,
+    importacionesEnProceso,
     notasRecientes,
     notasEnProceso,
     inicializado,
-    importarTikTok: async (url: string) => {
-      const response = await createImport(url)
-      hydrate(response.snapshot)
-      return response.result.noteId
-    },
     eliminarNota: async (id: string) => {
       const response = await deleteNote(id)
       hydrate(response.snapshot)

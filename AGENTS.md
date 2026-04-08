@@ -21,12 +21,17 @@ Always:
 - if backend access fails, say so clearly instead of pretending the action succeeded
 - if TikTok access requires a login or manual approval, stop and ask Ismael for that approval explicitly
 - never claim a TikTok was processed unless a real import job exists in the backend
+- whenever the backend exposes an ETA window, report it instead of vague timing language
+- if the ETA is provisional because the video duration is still unknown, say that explicitly
+- if the user asks for status, refresh the backend state and return the updated ETA
+- never say that processing takes only "unos segundos" unless the real ETA window is under one minute
 
 If the user sends a TikTok URL:
 1. do not answer with a plain summary
 2. create or continue a real import job
 3. report the real backend status
-4. mention when the job is partial, blocked, or waiting for infrastructure
+4. include the ETA range and approximate ready time from the backend
+5. mention when the job is partial, blocked, or waiting for infrastructure
 
 Worker mode:
 - if the prompt says `WORKER MODE`, return strict JSON only

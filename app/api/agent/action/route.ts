@@ -4,9 +4,11 @@ import {
   deleteNoteById,
   ensureTikTokUrl,
   getAgentSnapshot,
+  getImportJobSummary,
   retryImportJob,
   searchNotes,
 } from '@/lib/server/clawtok-service'
+import { notFound } from '@/lib/server/errors'
 import { handleRouteError, json, parseJsonBody } from '@/lib/server/http'
 import { agentActionSchema } from '@/lib/server/validators'
 
@@ -32,6 +34,14 @@ export async function POST(request: Request) {
         await retryImportJob(payload.input.jobId)
         result = { jobId: payload.input.jobId }
         break
+      case 'job.status': {
+        const job = await getImportJobSummary(payload.input.jobId)
+        if (!job) {
+          throw notFound('Importacion no encontrada')
+        }
+        result = { job }
+        break
+      }
       case 'note.delete':
         await deleteNoteById(payload.input.noteId)
         result = { noteId: payload.input.noteId }

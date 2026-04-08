@@ -50,6 +50,10 @@ export const agentActionSchema = z.discriminatedUnion('action', [
     input: z.object({ jobId: z.string().trim().min(1) }),
   }),
   z.object({
+    action: z.literal('job.status'),
+    input: z.object({ jobId: z.string().trim().min(1) }),
+  }),
+  z.object({
     action: z.literal('note.delete'),
     input: z.object({ noteId: z.string().trim().min(1) }),
   }),

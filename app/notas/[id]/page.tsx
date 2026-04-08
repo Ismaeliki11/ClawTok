@@ -50,6 +50,7 @@ export default function NotaPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const carpeta = store.carpetas.find((c) => c.id === nota.carpetaId)
+  const importacion = store.importaciones.find((item) => item.notaId === nota.id)
   const enProceso = nota.estadoProcesado !== 'completado' && nota.estadoProcesado !== 'error'
 
   const handleDelete = async () => {
@@ -152,10 +153,11 @@ export default function NotaPage({ params }: { params: Promise<{ id: string }> }
               </div>
               <div>
                 <p className="text-sm font-medium" style={{ color: '#6366f1' }}>
-                  {ESTADO_LABELS[nota.estadoProcesado]}
+                  {importacion?.estimacion?.etapaLabel ?? ESTADO_LABELS[nota.estadoProcesado]}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                  Este proceso tarda unos segundos
+                  {importacion?.estimacion?.mensaje ??
+                    'El tiempo depende de TikTok, la cola y si hace falta autenticar la sesion.'}
                 </p>
               </div>
             </div>

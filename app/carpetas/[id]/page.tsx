@@ -4,15 +4,13 @@ import { use } from 'react'
 import { useStore } from '@/hooks/useStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { NoteCard, NoteCardSkeleton } from '@/components/library/NoteCard'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { TelegramImportNotice } from '@/components/library/TelegramImportNotice'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
-import { ImportModal } from '@/components/library/ImportModal'
 
 export default function CarpetaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const store = useStore()
-  const [showImport, setShowImport] = useState(false)
 
   if (!store.inicializado) {
     return (
@@ -49,7 +47,6 @@ export default function CarpetaPage({ params }: { params: Promise<{ id: string }
   return (
     <AppShell>
       <div style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
-        {/* Header */}
         <div
           className="sticky top-0 z-30 glass px-5 md:px-8 py-4"
           style={{ borderBottom: '1px solid var(--border)' }}
@@ -81,14 +78,6 @@ export default function CarpetaPage({ params }: { params: Promise<{ id: string }
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-sm font-medium press shrink-0"
-              style={{ background: 'var(--text-primary)', color: 'white' }}
-            >
-              <Plus size={14} strokeWidth={2.5} />
-              <span className="hidden sm:inline">Importar</span>
-            </button>
           </div>
         </div>
 
@@ -107,17 +96,17 @@ export default function CarpetaPage({ params }: { params: Promise<{ id: string }
               >
                 Sin notas en {carpeta.nombre}
               </h3>
-              <p className="text-sm max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-                Importa un TikTok y se organizará aquí automáticamente.
+              <p className="text-sm max-w-xs mb-6" style={{ color: 'var(--text-secondary)' }}>
+                Los TikToks nuevos se procesan desde Telegram y, si encajan, apareceran aqui
+                automaticamente.
               </p>
-              <button
-                onClick={() => setShowImport(true)}
-                className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-[12px] text-sm font-semibold press"
-                style={{ background: 'var(--text-primary)', color: 'white' }}
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                Importar TikTok
-              </button>
+              <div className="w-full max-w-md">
+                <TelegramImportNotice
+                  compact
+                  title={`Enviar a ${carpeta.nombre} desde Telegram`}
+                  description="Pasa el enlace del video al bot para que ClawTok lo analice y lo clasifique."
+                />
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">
@@ -134,8 +123,6 @@ export default function CarpetaPage({ params }: { params: Promise<{ id: string }
           )}
         </div>
       </div>
-
-      {showImport && <ImportModal store={store} onClose={() => setShowImport(false)} />}
     </AppShell>
   )
 }

@@ -1,18 +1,16 @@
 'use client'
 
-import { useState } from 'react'
 import { useStore } from '@/hooks/useStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { FolderCard } from '@/components/library/FolderCard'
 import { NoteCard, NoteCardSkeleton } from '@/components/library/NoteCard'
 import { ProcessingBanner } from '@/components/library/ProcessingBanner'
-import { ImportModal } from '@/components/library/ImportModal'
-import { Plus, ArrowRight } from 'lucide-react'
+import { TelegramImportNotice } from '@/components/library/TelegramImportNotice'
+import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 export default function HomePage() {
   const store = useStore()
-  const [showImport, setShowImport] = useState(false)
 
   if (!store.inicializado) {
     return (
@@ -41,54 +39,27 @@ export default function HomePage() {
   return (
     <AppShell>
       <div style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}>
-        {/* Header */}
         <div
           className="sticky top-0 z-30 glass px-5 md:px-8 py-4"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
-          <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="max-w-3xl mx-auto">
             <h1
               className="text-xl font-bold"
               style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
             >
               Biblioteca
             </h1>
-            <button
-              onClick={() => setShowImport(true)}
-              className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-sm font-medium press"
-              style={{ background: 'var(--text-primary)', color: 'white' }}
-            >
-              <Plus size={15} strokeWidth={2.5} />
-              Importar
-            </button>
           </div>
         </div>
 
         <div className="px-5 md:px-8 py-6 max-w-3xl mx-auto flex flex-col gap-8">
-          {/* Import bar — desktop inline */}
-          <div className="hidden md:block">
-            <button
-              onClick={() => setShowImport(true)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] press text-left transition-shadow hover:shadow-md"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <Plus size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-              <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                Pega un enlace de TikTok para crear una nota...
-              </span>
-            </button>
-          </div>
+          <TelegramImportNotice />
 
-          {/* Procesando */}
-          {store.notasEnProceso.length > 0 && (
-            <ProcessingBanner notas={store.notasEnProceso} />
+          {store.importacionesEnProceso.length > 0 && (
+            <ProcessingBanner importaciones={store.importacionesEnProceso} />
           )}
 
-          {/* Carpetas */}
           <section>
             <div className="flex items-center justify-between mb-3">
               <h2
@@ -111,7 +82,6 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Notas recientes */}
           {store.notasRecientes.length > 0 ? (
             <section>
               <div className="flex items-center justify-between mb-3">
@@ -151,33 +121,29 @@ export default function HomePage() {
                 className="w-14 h-14 rounded-[18px] flex items-center justify-center text-2xl mb-5"
                 style={{ background: 'rgba(0,0,0,0.04)' }}
               >
-                ✦
+                *
               </div>
               <h3
                 className="text-base font-semibold mb-1.5"
                 style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
               >
-                Tu biblioteca está vacía
+                Tu biblioteca esta vacia
               </h3>
-              <p className="text-sm max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-                Importa tu primer TikTok para convertirlo en una nota útil y organizada.
+              <p className="text-sm max-w-xs mb-6" style={{ color: 'var(--text-secondary)' }}>
+                Los TikToks nuevos ya no se importan desde la web. Envialos al bot de Telegram y
+                apareceran aqui cuando termine el procesamiento.
               </p>
-              <button
-                onClick={() => setShowImport(true)}
-                className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-[12px] text-sm font-semibold press"
-                style={{ background: 'var(--text-primary)', color: 'white' }}
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                Importar primer TikTok
-              </button>
+              <div className="w-full max-w-md">
+                <TelegramImportNotice
+                  compact
+                  title="Enviar el video al bot"
+                  description="ClawTok procesa nuevos enlaces solo desde Telegram."
+                />
+              </div>
             </div>
           )}
         </div>
       </div>
-
-      {showImport && (
-        <ImportModal store={store} onClose={() => setShowImport(false)} />
-      )}
     </AppShell>
   )
 }
