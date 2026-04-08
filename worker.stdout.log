@@ -1,0 +1,5 @@
+
+> clawtok@0.1.0 worker
+> tsx scripts/openclaw-worker.ts
+
+ClawTok worker started.
