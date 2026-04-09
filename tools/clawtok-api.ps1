@@ -13,8 +13,44 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Console]::OutputEncoding
 
-$baseUrl = $env:OPENCLAW_CLAWTOK_BASE_URL
-$agentKey = $env:OPENCLAW_CLAWTOK_AGENT_KEY
+function Get-DotEnvValue {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Name
+  )
+
+  if (-not (Test-Path $Path)) {
+    return $null
+  }
+
+  $prefix = "$Name="
+  foreach ($line in Get-Content $Path) {
+    if ($line.StartsWith($prefix)) {
+      return $line.Substring($prefix.Length).Trim()
+    }
+  }
+
+  return $null
+}
+
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$envLocalPath = Join-Path $repoRoot '.env.local'
+
+$baseUrl = Get-DotEnvValue -Path $envLocalPath -Name 'OPENCLAW_CLAWTOK_BASE_URL'
+if ([string]::IsNullOrWhiteSpace($baseUrl)) {
+  $baseUrl = $env:OPENCLAW_CLAWTOK_BASE_URL
+}
+
+$agentKey = Get-DotEnvValue -Path $envLocalPath -Name 'OPENCLAW_CLAWTOK_AGENT_KEY'
+if ([string]::IsNullOrWhiteSpace($agentKey)) {
+  $agentKey = Get-DotEnvValue -Path $envLocalPath -Name 'OPENCLAW_AGENT_API_KEY'
+}
+if ([string]::IsNullOrWhiteSpace($agentKey)) {
+  $agentKey = $env:OPENCLAW_CLAWTOK_AGENT_KEY
+}
 
 if ([string]::IsNullOrWhiteSpace($baseUrl)) {
   throw 'OPENCLAW_CLAWTOK_BASE_URL is not set.'
