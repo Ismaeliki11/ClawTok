@@ -3,8 +3,10 @@ import './globals.css'
 import { Providers } from '@/app/providers'
 
 export const metadata: Metadata = {
-  title: 'Clawtok — Tu biblioteca de TikToks',
-  description: 'Convierte tus TikToks guardados en notas inteligentes, organizadas y fácilmente consultables.',
+  title: 'Clawtok - Tu biblioteca de TikToks',
+  applicationName: 'Clawtok',
+  description: 'Convierte tus TikToks guardados en notas inteligentes, organizadas y faciles de consultar.',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

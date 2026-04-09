@@ -2,6 +2,7 @@
 
 import { useStore } from '@/hooks/useStore'
 import { AppShell } from '@/components/layout/AppShell'
+import { BrandMark } from '@/components/layout/BrandMark'
 import { FolderCard } from '@/components/library/FolderCard'
 import { NoteCard, NoteCardSkeleton } from '@/components/library/NoteCard'
 import { ProcessingBanner } from '@/components/library/ProcessingBanner'
@@ -44,12 +45,15 @@ export default function HomePage() {
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div className="max-w-3xl mx-auto">
-            <h1
-              className="text-xl font-bold"
-              style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
-            >
-              Biblioteca
-            </h1>
+            <div className="flex items-center gap-3">
+              <BrandMark mode="icon" priority />
+              <h1
+                className="text-xl font-bold"
+                style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
+              >
+                Biblioteca
+              </h1>
+            </div>
           </div>
         </div>
 

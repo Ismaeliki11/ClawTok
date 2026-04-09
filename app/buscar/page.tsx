@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useStore } from '@/hooks/useStore'
 import { AppShell } from '@/components/layout/AppShell'
+import { BrandMark } from '@/components/layout/BrandMark'
 import { NoteCard } from '@/components/library/NoteCard'
 import { Search, X } from 'lucide-react'
 
@@ -24,12 +25,15 @@ export default function BuscarPage() {
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div className="max-w-2xl mx-auto">
-            <h1
-              className="text-xl font-bold mb-4"
-              style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
-            >
-              Buscar
-            </h1>
+            <div className="mb-4 flex items-center gap-3">
+              <BrandMark mode="icon" />
+              <h1
+                className="text-xl font-bold"
+                style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
+              >
+                Buscar
+              </h1>
+            </div>
             {/* Input de búsqueda */}
             <div
               className="flex items-center gap-2.5 px-4 py-3 rounded-[14px]"

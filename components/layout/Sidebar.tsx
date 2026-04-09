@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BookOpen, Search } from 'lucide-react'
 import type { useStore } from '@/hooks/useStore'
+import { BrandMark } from '@/components/layout/BrandMark'
 import { TelegramImportNotice } from '@/components/library/TelegramImportNotice'
 
 type Store = ReturnType<typeof useStore>
@@ -24,12 +25,7 @@ export function Sidebar({ store }: SidebarProps) {
       }}
     >
       <div className="px-3 mb-6 mt-2">
-        <span
-          className="text-base font-semibold tracking-tight"
-          style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
-        >
-          Clawtok
-        </span>
+        <BrandMark href="/" mode="full" priority />
       </div>
 
       <NavItem href="/" active={pathname === '/'} icon={<BookOpen size={16} />} label="Biblioteca" />
