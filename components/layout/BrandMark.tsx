@@ -22,7 +22,7 @@ export function BrandMark({
         width={124}
         height={124}
         priority={priority}
-        className={`h-auto w-[124px] rounded-[24px] shadow-sm ${className}`.trim()}
+        className={`h-auto w-[124px] object-contain ${className}`.trim()}
       />
     ) : (
       <Image
@@ -31,7 +31,7 @@ export function BrandMark({
         width={36}
         height={36}
         priority={priority}
-        className={`h-9 w-9 rounded-[10px] shadow-sm ${className}`.trim()}
+        className={`h-9 w-9 object-contain ${className}`.trim()}
       />
     )
 
