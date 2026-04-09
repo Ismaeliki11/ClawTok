@@ -19,19 +19,19 @@ export function BrandMark({
       <Image
         src="/logo-clawtok.webp"
         alt="Clawtok"
-        width={124}
-        height={124}
+        width={92}
+        height={92}
         priority={priority}
-        className={`h-auto w-[124px] object-contain ${className}`.trim()}
+        className={`h-auto w-[92px] object-contain ${className}`.trim()}
       />
     ) : (
       <Image
         src="/icon-192.png"
         alt="Clawtok"
-        width={36}
-        height={36}
+        width={28}
+        height={28}
         priority={priority}
-        className={`h-9 w-9 object-contain ${className}`.trim()}
+        className={`h-7 w-7 object-contain ${className}`.trim()}
       />
     )
 
